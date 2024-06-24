@@ -172,10 +172,16 @@ import SwiftUI
 //    }
 //}
 
+enum ResortSorting {
+    case Default, Alphabetical, Country
+}
+
 struct ContentView: View {
     let resorts: [Resort] = Bundle.main.decode("resorts.json")
     @State private var searchText = ""
     @State private var favorites = Favorites()
+    @State private var showingSort = false
+    @State private var sorted: ResortSorting = .Default
     
     var filteredResorts: [Resort] {
         if searchText.isEmpty {
@@ -183,11 +189,24 @@ struct ContentView: View {
         } else {
             resorts.filter { $0.name.localizedStandardContains(searchText) }
         }
+        
     }
+    
+    var filteredAndSorted: [Resort] {
+        switch sorted {
+        case .Default:
+            filteredResorts
+        case .Alphabetical:
+            filteredResorts.sorted(by: { $0.name < $1.name })
+        case .Country:
+            filteredResorts.sorted(by: { $0.country < $1.country })
+        }
+    }
+
     
     var body: some View {
         NavigationSplitView {
-            List(filteredResorts) { resort in
+            List(filteredAndSorted) { resort in
                 NavigationLink(value: resort) {
                     HStack {
                         Image(resort.country)
@@ -207,6 +226,20 @@ struct ContentView: View {
                                 .font(.headline)
                             Text("\(resort.runs) runs")
                                 .foregroundStyle(.secondary)
+                                .actionSheet(isPresented: self.$showingSort) {
+                                    ActionSheet(title: Text("Sort by:"), buttons: [
+                                        .default(Text("Default")) {
+                                            self.sorted = .Default
+                                        },
+                                        .default(Text("Alphabetical")) {
+                                            self.sorted = .Alphabetical
+                                        },
+                                        .default(Text("Country")) {
+                                            self.sorted = .Country
+                                        },
+                                        .cancel()
+                                    ])
+                                }
                         }
                         if favorites.contains(resort) {
                             Spacer()
@@ -223,11 +256,25 @@ struct ContentView: View {
                 ResortView(resort: resort)
             }
             .searchable(text: $searchText, prompt: "Search for a resort")
+            .navigationBarItems(
+                    leading:
+                        Button(action: {
+                            self.showingSort.toggle()
+                        }) {
+                            Image(systemName: "arrow.up.arrow.down.circle")
+                                .padding(5)
+                                .background(Color.clear)
+                                .clipShape(Circle())
+                        })
+            
+            
         } detail: {
             WelcomeView()
         }
         .environment(favorites)
     }
+   
+    
 }
 
 #Preview {
